@@ -1,0 +1,162 @@
+import cmd
+import random
+import string
+import hashlib
+import os
+from cryptography.fernet import Fernet
+
+key_file = "key.txt"
+hash_file = "hash.txt"
+passwords_file = "passwords.txt"
+
+class PasswordManager(cmd.Cmd):
+    intro = "Welcome to LLSPM CLI. Type help or ? to list commands.\n"
+    prompt = "(LLSPM) "
+
+    def __init__(self):
+        super().__init__()
+        self.master_password_set = False
+        if not os.path.exists(hash_file):
+            self.create_master_password()
+        else:
+            self.verify_master_password()
+
+    def verify_master_password(self):
+        with open(hash_file, "r") as file:
+            stored_hash = file.read().strip()
+
+        attempts = 3
+        while attempts > 0:
+            entered_password = input("Enter your master password: ")
+            if self.hash_password(entered_password) == stored_hash:
+                self.master_password_set = True
+                break
+            else:
+                print("Incorrect password. Please try again.")
+                attempts -= 1
+
+        if not self.master_password_set:
+            print("Too many incorrect attempts. Exiting.")
+            exit()
+
+    def do_generate(self, arg):
+        """Generate a random password"""
+        if self.master_password_set:
+            password = self.generate_password()
+            print("Generated password:", password)
+        else:
+            print("Master password not set. Use 'create_password' to set it.")
+
+    def do_save(self, arg):
+        """Save a password"""
+        if self.master_password_set:
+            label = input("Enter the label (e.g., service name): ")
+            username = input("Enter the username: ")
+            password = input("Enter the password: ")
+            self.save_password(label, username, password)
+        else:
+            print("Master password not set. Use 'create_password' to set it.")
+
+    def do_view(self, arg):
+        """View saved passwords"""
+        if self.master_password_set:
+            self.view_passwords()
+        else:
+            print("Master password not set. Use 'create_password' to set it.")
+
+    def do_delete(self, arg):
+        """Delete a saved password"""
+        if self.master_password_set:
+            label = input("Enter the label (e.g., service name) of the password to delete: ")
+            username = input("Enter the username of the password to delete: ")
+            self.delete_password(label, username)
+        else:
+            print("Master password not set. Use 'create_password' to set it.")
+
+    def do_delete_all(self, arg):
+        """Delete all saved passwords"""
+        if self.master_password_set:
+            self.delete_password_file()
+        else:
+            print("Master password not set. Use 'create_password' to set it.")
+
+    def generate_password(self):
+        characters = string.ascii_letters + string.digits + string.punctuation
+        password = ''.join(random.choice(characters) for _ in range(12))
+        return password
+
+    def save_password(self, label, username, password):
+        encrypted_password = self.encrypt_password(password)
+        with open(passwords_file, "ab") as file:
+            file.write(f"{label}:{username}:".encode() + encrypted_password + b'\n')
+        print("Password saved successfully.")
+
+    def view_passwords(self):
+        try:
+            with open(passwords_file, "rb") as file:
+                passwords = file.readlines()
+                for index, encrypted_password in enumerate(passwords):
+                    label, username, encrypted_password = encrypted_password.strip().split(b":")
+                    password_value = self.decrypt_password(encrypted_password)
+                    print(f"Service: {label.decode()} | Username: {username.decode()} | Password: {password_value}")
+        except FileNotFoundError:
+            print("No passwords saved yet.")
+
+    def delete_password(self, label, username):
+        try:
+            with open(passwords_file, "rb") as file:
+                lines = file.readlines()
+            with open(passwords_file, "wb") as file:
+                for line in lines:
+                    if line.strip().split(b":")[0] != label.encode() or line.strip().split(b":")[1] != username.encode():
+                        file.write(line)
+            print("Password deleted successfully.")
+        except FileNotFoundError:
+            print("No passwords saved yet.")
+
+    def delete_password_file(self):
+        if os.path.exists(passwords_file):
+            os.remove(passwords_file)
+            print("Password file deleted successfully.")
+        else:
+            print("No passwords saved yet.")
+
+    def encrypt_password(self, password):
+        cipher_suite = Fernet(self.generate_or_load_key())
+        return cipher_suite.encrypt(password.encode())
+
+    def decrypt_password(self, encrypted_password):
+        cipher_suite = Fernet(self.generate_or_load_key())
+        return cipher_suite.decrypt(encrypted_password).decode()
+
+    def hash_password(self, password):
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def generate_or_load_key(self):
+        if not os.path.exists(key_file):
+            key = Fernet.generate_key()
+            with open(key_file, "wb") as file:
+                file.write(key)
+            print("Your key has been generated. Do NOT lose your key!")
+            print("It is the only way to access your passwords.")
+            print("We recommend you backup both your key.txt and passwords.txt files!")
+        else:
+            with open(key_file, "rb") as file:
+                key = file.read()
+        return key
+
+    def create_master_password(self):
+        new_password = input("Create your master password: ")
+        hashed_password = self.hash_password(new_password)
+        with open(hash_file, "w") as file:
+            file.write(hashed_password)
+        print("Password created successfully.")
+        self.master_password_set = True
+
+    def do_exit(self, arg):
+        """Exit the Password Manager"""
+        print("Exiting Password Manager.")
+        return True
+
+if __name__ == "__main__":
+    PasswordManager().cmdloop()
