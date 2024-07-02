@@ -8,8 +8,8 @@ LLSPM is a robust password management solution designed for Linux systems, offer
 
  - Encryption: Passwords are encrypted using cryptography.fernet with a key stored locally (key.txt).
  - Master Password: A master password hashed with SHA-256 is used to access the password manager securely.
- - Password Generation: Random password generation with options for customization.
+ - Password Generation: Random password generation to generate 12 digit secure passwords.
  - Password Saving: Store passwords with labels and usernames in a local file (passwords.txt).
- - Password Viewing: View saved passwords securely after authentication.
+ - Password Viewing: View saved passwords securely.
  - Password Deletion: Delete individual passwords or clear all stored passwords.
- - Clipboard Integration: Copy passwords to clipboard for convenient pasting (clipboard is cleared after a timeout).
+ - Clipboard Integration: Copy passwords to clipboard for convenient pasting.
