@@ -5,8 +5,7 @@ echo ""
 sudo apt update
 sudo apt install -y python3
 sudo apt install -y python3-tk
-sudo apt install -y python3-pip
-pip install cryptography
+sudo apt install -y python3-cryptography
 
 echo ""
 echo "All dependencies for LLSPM have been installed."
